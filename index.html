@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ms-MY">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kemahiran Pemulihan: Operasi Bahagi (Pembelajaran)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { box-sizing: border-box; }
+    .activity-card { min-height: 400px; }
+    .number-card, .item-card, .domino-card { 
+      transition: all .3s ease; 
+      cursor: pointer; 
+      user-select: none; /* Elak pilih teks semasa seret */
+    }
+    .number-card:hover, .item-card:hover, .domino-card:hover { transform: scale(1.05); }
+    .dragging { opacity: .5; transform: rotate(5deg); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      transition: all .3s ease;
+      min-width: 60px;
+      min-height: 60px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .drop-zone.drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+
+    /* Salah */
+    @keyframes shake {
+      0% { transform: translateX(0); } 25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); } 75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    .shake { animation: shake 0.5s ease; }
+
+    /* Zon sudah diisi */
+    .drop-zone-filled {
+      border-style: solid;
+      border-color: #4ade80;
+      background-color: #f0fdf4;
+    }
+
+    /* Stail untuk item-item kecil */
+    .guli-item {
+      display: inline-block;
+      width: 20px; height: 20px;
+      background-color: #3b82f6; /* Guli biru */
+      border-radius: 50%;
+      margin: 2px;
+      transition: all 0.5s ease;
+    }
+    .guli-item.agih { background-color: #eab308; transform: scale(1.2); }
+    .kotak-agihan {
+      width: 100px; min-height: 80px;
+      background: #f3f4f6; border: 2px solid #d1d5db;
+      border-radius: 8px; padding: 8px;
+      text-align: center;
+    }
+    .guli-drag {
+      display: inline-block; width: 30px; height: 30px;
+      background-color: #16a34a; /* Guli hijau */
+      border-radius: 50%; margin: 3px; cursor: move;
+    }
+    .bakul-pengumpulan {
+      width: 120px; min-height: 100px;
+      background: #fef3c7; border: 2px dashed #f59e0b;
+      border-radius: 8px; padding: 8px;
+      text-align: center;
+    }
+
+    /* === BARU: Stail untuk Peta Sifir === */
+    .sifir-table {
+      border-collapse: collapse;
+      margin: 1rem auto;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .sifir-table th, .sifir-table td {
+      border: 1px solid #d1d5db;
+      padding: 6px;
+      text-align: center;
+      min-width: 40px;
+      height: 40px;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+    .sifir-table th { background-color: #f3f4f6; }
+    .sifir-answer {
+      background-color: #fff;
+      color: #3b82f6; /* Warna biru untuk jawapan */
+      cursor: pointer;
+    }
+    .sifir-answer:hover { background-color: #eff6ff; }
+    /* Kelas highlight */
+    .sifir-highlight-row { background-color: #fef3c7 !important; }
+    .sifir-highlight-col { background-color: #fef3c7 !important; }
+    .sifir-highlight-answer { 
+      background-color: #60a5fa !important; /* Biru terang */
+      color: #ffffff !important; 
+    }
+    /* === TAMAT Stail Baru === */
+
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-full">
+
+  <div class="bg-yellow-100 border-b-4 border-yellow-300 p-4 shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">📚</span>
+        <span id="info-text" class="text-lg font-semibold text-gray-800">
+          Pilih aktiviti untuk mula belajar bahagi!
+        </span>
+      </div>
+      <button id="speak-btn"
+              class="bg-yellow-300 hover:bg-yellow-400 text-yellow-800 font-bold py-2 px-4 rounded-full text-xl transition-colors duration-200"
+              onclick="speakInfo()">
+        🔊
+      </button>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 activity-card flex items-center justify-center">
+      <div id="activity-content" class="text-center w-full">
+        <div class="py-16">
+          <div class="text-6xl mb-4">➗</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">
+            Kemahiran Pemulihan: Operasi Bahagi
+          </h2>
+          <p class="text-xl text-gray-600 mb-8">
+            Pilih aktiviti di bawah untuk meneroka konsep bahagi secara santai.
+          </p>
+          <div class="text-4xl">👇</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+      <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Pilih Aktiviti</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <button onclick="loadActivity(1)"
+                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          ⚙️ Mesin Pengagihan
+        </button>
+        <button onclick="loadActivity(2)"
+                class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🧺 Pakar Pengumpulan
+        </button>
+        <button onclick="loadActivity(3)"
+                class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🗺️ Teroka Peta Sifir
+        </button>
+        <button onclick="loadActivity(4)"
+                class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          ⬆️ Penyusun Sifir
+        </button>
+        <button onclick="loadActivity(5)"
+                class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🔍 Misteri Kod Rahsia
+        </button>
+      </div>
+
+      <div class="flex justify-center gap-4">
+        <button onclick="clearActivity()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          🧹 Bersih
+        </button>
+        <button onclick="nextActivity()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          ➡️ Seterusnya
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentActivity = 0;
+    let ttsEnabled = false;
+    let currentInfo = "Pilih aktiviti untuk mula belajar bahagi!";
+    let draggedElement = null;
+
+    /* ====== TTS (Kekal sama) ====== */
+    function speak(text) {
+      if (!ttsEnabled) return;
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ms-MY';
+        u.rate = 0.9; u.pitch = 1.05;
+        const voices = window.speechSynthesis.getVoices();
+        const ms = voices.find(v => v.lang === 'ms-MY' || v.lang?.startsWith('ms'));
+        if (ms) u.voice = ms;
+        window.speechSynthesis.speak(u);
+      }, 100);
+    }
+    function setInfo(text) { currentInfo = text; document.getElementById('info-text').textContent = text; }
+    function speakInfo() {
+      if (!ttsEnabled) {
+        ttsEnabled = true;
+        const btn = document.getElementById('speak-btn');
+        btn.classList.add('bg-green-300', 'hover:bg-green-400');
+        btn.classList.remove('bg-yellow-300', 'hover:bg-yellow-400');
+      }
+      speak(currentInfo);
+    }
+
+    /* ====== DnD helpers (Kekal sama) ====== */
+    function dragStart(e) { draggedElement = e.target; e.target.classList.add('dragging'); }
+    function dragEnd(e) { 
+      if (draggedElement) draggedElement.classList.remove('dragging'); 
+      draggedElement = null;
+      document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over')); 
+    }
+    function allowDrop(e) { e.preventDefault(); if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.add('drag-over'); }
+    function dragLeave(e) { if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.remove('drag-over'); }
+
+    /* ====== Router (Diubah suai) ====== */
+    function loadActivity(n) {
+      currentActivity = n;
+      const content = document.getElementById('activity-content');
+      if (n === 1) return loadMesinPengagihan(content);
+      if (n === 2) return loadPakarPengumpulan(content);
+      // === DIUBAH ===
+      if (n === 3) return loadPetaSifir(content);
+      // === TAMAT ===
+      if (n === 4) return loadPenyusunSifir(content);
+      if (n === 5) return loadMisteriKodRahsia(content);
+    }
+
+    /* ====== Aktiviti 1: Mesin Pengagihan (Kekal) ====== */
+    function loadMesinPengagihan(content) {
+      setInfo("Jom lihat bagaimana 18 guli diagihkan sama rata ke dalam 6 kotak. Tekan butang 'Agihkan'.");
+      let guliHTML = '';
+      for (let i = 0; i < 18; i++) { guliHTML += `<div id="guli-${i}" class="guli-item"></div>`; }
+      
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-blue-600 mb-6">⚙️ Mesin Pengagihan</h3>
+        <div class="text-2xl font-semibold mb-4">Soalan: <span class="font-bold text-3xl">18 ÷ 6 = ?</span></div>
+        <div class="mb-4 p-4 bg-gray-100 rounded-lg" style="max-width: 300px; margin: auto;">
+          <h4 class="text-sm font-semibold mb-2">Guli untuk diagih:</h4>
+          <div id="guli-container" class="flex flex-wrap justify-center">${guliHTML}</div>
+        </div>
+        <button id="agih-btn" onclick="animasiAgihan()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg text-lg mb-6">
+          Agihkan 18 guli
+        </button>
+        <div id="kotak-container" class="flex flex-wrap justify-center gap-2 mb-4">
+          ${[...Array(6)].map((_, i) => `
+            <div class="kotak-agihan">
+              <div class="text-sm font-bold">Kotak ${i+1}</div>
+              <div id="kotak-isi-${i}" class="text-lg font-bold text-blue-700">0</div>
+            </div>
+          `).join('')}
+        </div>
+        <div id="hasil-agihan" class="mt-6 p-4 bg-blue-50 rounded-lg text-center text-xl font-semibold text-blue-800 min-h-16" style="display: none;">
+        </div>
+      `;
+    }
+    function animasiAgihan() {
+      const btn = document.getElementById('agih-btn');
+      if (btn) btn.disabled = true;
+      let guliLeft = 18; let currentGuliId = 17; let currentBoxId = 0;
+      let boxCounts = [0, 0, 0, 0, 0, 0];
+      const interval = setInterval(() => {
+        if (guliLeft <= 0) {
+          clearInterval(interval);
+          const hasilMsg = "Selesai! Setiap kotak mendapat 3 guli. Jadi, 18 ÷ 6 = 3.";
+          const hasilEl = document.getElementById('hasil-agihan');
+          hasilEl.textContent = hasilMsg;
+          hasilEl.style.display = 'block';
+          setInfo(hasilMsg); speak(hasilMsg);
+          if (btn) btn.textContent = "Selesai!";
+          return;
+        }
+        guliLeft--;
+        const guli = document.getElementById(`guli-${currentGuliId--}`);
+        if(guli) guli.style.display = 'none';
+        boxCounts[currentBoxId]++;
+        const kotakIsi = document.getElementById(`kotak-isi-${currentBoxId}`);
+        if(kotakIsi) kotakIsi.textContent = boxCounts[currentBoxId];
+        currentBoxId = (currentBoxId + 1) % 6;
+      }, 300);
+    }
+
+    /* ====== Aktiviti 2: Pakar Pengumpulan (Kekal) ====== */
+    let guliTotal = 24; let bakulPenuh = 0; const KAPASITI_BAKUL = 4;
+    function loadPakarPengumpulan(content) {
+      setInfo("Kita ada 24 guli. Seret guli ke dalam bakul untuk kumpulkan 4 guli dalam setiap bakul.");
+      guliTotal = 24; bakulPenuh = 0; // Reset
+      let guliHTML = '';
+      for (let i = 0; i < 24; i++) {
+        guliHTML += `<div class="guli-drag" draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-id="${i}"></div>`;
+      }
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-green-600 mb-6">🧺 Pakar Pengumpulan</h3>
+        <div class="text-2xl font-semibold mb-4">Soalan: <span class="font-bold text-3xl">24 ÷ 4 = ?</span></div>
+        <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h4 class="text-sm font-semibold mb-2">Guli (seret dari sini): <span id="guli-count">24</span></h4>
+          <div id="guli-bank" class="flex flex-wrap justify-center min-h-16">${guliHTML}</div>
+        </div>
+        <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h4 class="text-sm font-semibold mb-2">Bakul (letak di sini): <span id="bakul-count">0</span> Penuh</h4>
+          <div id="bakul-container" class="flex flex-wrap justify-center gap-2 min-h-32"></div>
+        </div>
+        <div id="hasil-kumpul" class="mt-6 p-4 bg-green-50 rounded-lg text-center text-xl font-semibold text-green-800" style="display: none;">
+        </div>
+      `;
+      tambahBakulBaru();
+    }
+    function tambahBakulBaru() {
+      const container = document.getElementById('bakul-container');
+      if (!container) return;
+      const newBakul = document.createElement('div');
+      newBakul.className = 'bakul-pengumpulan drop-zone';
+      newBakul.setAttribute('ondrop', 'dropOnBakul(event)');
+      newBakul.setAttribute('ondragover', 'allowDrop(event)');
+      newBakul.setAttribute('ondragleave', 'dragLeave(event)');
+      newBakul.dataset.count = 0;
+      newBakul.innerHTML = `<div class="text-sm">Bakul #${bakulPenuh + 1}</div><div class="font-bold text-lg">0 / ${KAPASITI_BAKUL}</div>`;
+      container.appendChild(newBakul);
+    }
+    function dropOnBakul(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+      if (!draggedElement) return;
+      guliTotal--;
+      bakulPenuh = parseInt(document.getElementById('bakul-count').textContent);
+      const guliCountEl = document.getElementById('guli-count');
+      if(guliCountEl) guliCountEl.textContent = guliTotal;
+      let count = parseInt(e.currentTarget.dataset.count) + 1;
+      e.currentTarget.dataset.count = count;
+      e.currentTarget.innerHTML = `<div class="text-sm">Bakul #${bakulPenuh + 1}</div><div class="font-bold text-lg">${count} / ${KAPASITI_BAKUL}</div>`;
+      draggedElement.remove(); draggedElement = null;
+      if (count === KAPASITI_BAKUL) {
+        e.currentTarget.classList.add('drop-zone-filled');
+        e.currentTarget.classList.remove('drop-zone');
+        e.currentTarget.style.borderColor = '#22c55e';
+        e.currentTarget.style.backgroundColor = '#dcfce7';
+        e.currentTarget.removeAttribute('ondrop');
+        bakulPenuh++;
+        const bakulCountEl = document.getElementById('bakul-count');
+        if(bakulCountEl) bakulCountEl.textContent = bakulPenuh;
+        if (guliTotal > 0) {
+          const msg = `Bakul #${bakulPenuh} penuh! Jom isi bakul seterusnya.`;
+          setInfo(msg); speak(msg);
+          tambahBakulBaru();
+        }
+      }
+      if (guliTotal === 0) {
+        const hasilMsg = `Syabas! Semua 24 guli telah diisi ke dalam 6 bakul. Jadi, 24 ÷ 4 = 6.`;
+        const hasilEl = document.getElementById('hasil-kumpul');
+        hasilEl.textContent = hasilMsg;
+        hasilEl.style.display = 'block';
+        setInfo(hasilMsg); speak(hasilMsg);
+      }
+    }
+
+    /* ====== Aktiviti 3: Teroka Peta Sifir (BARU) ====== */
+    // Konsep: Meneroka hubungan darab dan bahagi secara bebas
+    function loadPetaSifir(content) {
+      setInfo("Klik mana-mana nombor jawapan (berwarna biru) di dalam peta sifir untuk melihat hubungannya.");
+      
+      // Bina grid 10x10 (1-10)
+      let tableHTML = '<table id="peta-sifir" class="sifir-table"><tbody>';
+      for (let i = 0; i <= 10; i++) {
+        tableHTML += '<tr>';
+        for (let j = 0; j <= 10; j++) {
+          if (i === 0 && j === 0) {
+            tableHTML += '<th>x</th>'; // Penjuru
+          } else if (i === 0) {
+            tableHTML += `<th>${j}</th>`; // Pengepala lajur
+          } else if (j === 0) {
+            tableHTML += `<th>${i}</th>`; // Pengepala baris
+          } else {
+            // Sel jawapan yang boleh diklik
+            let answer = i * j;
+            tableHTML += `<td class="sifir-answer" onclick="showSifirInfo(${i}, ${j}, ${answer})">${answer}</td>`;
+          }
+        }
+        tableHTML += '</tr>';
+      }
+      tableHTML += '</tbody></table>';
+
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-purple-600 mb-6">🗺️ Teroka Peta Sifir</h3>
+        <div id="sifir-info-box" class="mt-4 mb-4 p-4 bg-purple-50 rounded-lg text-center text-xl font-semibold text-purple-800 min-h-16">
+          Klik pada nombor di dalam petak untuk bermula.
+        </div>
+        <div class="overflow-x-auto"> 
+          ${tableHTML}
+        </div>
+      `;
+    }
+
+    function showSifirInfo(row, col, answer) {
+      const table = document.getElementById('peta-sifir');
+      if (!table) return;
+
+      // 1. Bersihkan semua highlight
+      table.querySelectorAll('th, td').forEach(cell => {
+        cell.classList.remove('sifir-highlight-row', 'sifir-highlight-col', 'sifir-highlight-answer');
+      });
+
+      // 2. Highlight yang baru
+      table.rows[row].cells[col].classList.add('sifir-highlight-answer'); // Jawapan
+      table.rows[row].cells[0].classList.add('sifir-highlight-row'); // Pengepala baris
+      table.rows[0].cells[col].classList.add('sifir-highlight-col'); // Pengepala lajur
+
+      // 3. Bina mesej
+      let msg;
+      if (answer === 0) {
+         msg = `Sifir sifar! ${row} x ${col} = 0.`;
+      } else {
+         msg = `Anda jumpa ${answer}! Ini datang dari ${row} x ${col} = ${answer}. Ini juga bermakna: ${answer} ÷ ${row} = ${col}, dan ${answer} ÷ ${col} = ${row}.`;
+      }
+
+      // 4. Papar mesej dan sebut
+      document.getElementById('sifir-info-box').innerHTML = msg;
+      setInfo(msg);
+      speak(msg);
+    }
+    /* === TAMAT KOD BARU === */
+
+
+    /* ====== Aktiviti 4: Penyusun Sifir (Kekal) ====== */
+    function loadPenyusunSifir(content) {
+      setInfo("Seret kad soalan ke slot yang betul. Susun jawapan mengikut tertib menaik (kecil ke besar).");
+      const sifir = [
+        { q: "12 ÷ 6 = ?", a: 2 }, { q: "6 ÷ 6 = ?", a: 1 },
+        { q: "24 ÷ 6 = ?", a: 4 }, { q: "18 ÷ 6 = ?", a: 3 },
+      ].sort(() => Math.random() - 0.5);
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-orange-600 mb-6">⬆️ Penyusun Sifir (Tertib Menaik)</h3>
+        <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h4 class="text-sm font-semibold mb-2">Kad Soalan (seret dari sini):</h4>
+          <div id="sifir-bank" class="flex flex-wrap justify-center gap-3">
+            ${sifir.map(s => `
+              <div class="number-card bg-orange-100 border-2 border-orange-300 rounded-lg p-4 text-xl font-bold text-orange-800 cursor-move"
+                   draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-answer="${s.a}">
+                ${s.q}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h4 class="text-sm font-semibold mb-2">Slot Jawapan (susun di sini):</h4>
+          <div id="sifir-slots" class="flex flex-wrap justify-center gap-3">
+            <div class="drop-zone rounded-lg p-6 text-center" ondrop="dropOnSifirSlot(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" data-correct="1">
+              <span class="font-semibold text-gray-500">Jawapan Terkecil (1)</span>
+            </div>
+            <div class="drop-zone rounded-lg p-6 text-center" ondrop="dropOnSifirSlot(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" data-correct="2">
+              <span class="font-semibold text-gray-500">Slot 2</span>
+            </div>
+            <div class="drop-zone rounded-lg p-6 text-center" ondrop="dropOnSifirSlot(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" data-correct="3">
+              <span class="font-semibold text-gray-500">Slot 3</span>
+            </div>
+            <div class="drop-zone rounded-lg p-6 text-center" ondrop="dropOnSifirSlot(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" data-correct="4">
+              <span class="font-semibold text-gray-500">Jawapan Terbesar (4)</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    function dropOnSifirSlot(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+      if (!draggedElement) return;
+      const draggedAnswer = draggedElement.dataset.answer;
+      const correctNumber = e.currentTarget.dataset.correct;
+      if (draggedAnswer === correctNumber) {
+        e.currentTarget.innerHTML = draggedElement.innerHTML + `<div class="text-green-600 font-bold">Jawapan: ${draggedAnswer}</div>`;
+        e.currentTarget.classList.add('drop-zone-filled');
+        e.currentTarget.classList.remove('drop-zone');
+        e.currentTarget.removeAttribute('ondrop');
+        draggedElement.remove(); draggedElement = null;
+        const msg = `Betul! Jawapan ${draggedAnswer} diletak di situ.`; setInfo(msg); speak(msg);
+        if (document.querySelectorAll('#sifir-slots .drop-zone').length === 0) {
+          setInfo("Syabas! Semua sifir disusun dengan betul!"); speak("Syabas! Semua sifir disusun dengan betul!");
+        }
+      } else {
+        setInfo(`Bukan di situ. Cuba lagi.`); speak(`Bukan di situ. Cuba lagi.`);
+        e.currentTarget.classList.add('shake'); setTimeout(()=>e.currentTarget.classList.remove('shake'),500);
+      }
+    }
+
+    /* ====== Aktiviti 5: Misteri Kod Rahsia (Kekal) ====== */
+    let mysteryCurrentValue = 0; const MYSTERY_DIVISOR = 3; const MYSTERY_ANSWER = 5;
+    function loadMisteriKodRahsia(content) {
+      setInfo("Cari nombor misteri (?). Gunakan butang + dan - untuk menambah atau mengurangkan nombor sehingga setiap kotak mendapat 5 biji guli.");
+      mysteryCurrentValue = 0; // Reset
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-red-600 mb-6">🔍 Misteri Kod Rahsia</h3>
+        <div class="text-3xl font-bold mb-6 text-center">
+          <span id="mystery-number-box" class="bg-red-100 border-2 border-red-300 rounded-lg px-4 py-2 text-red-700">?</span>
+           ÷ ${MYSTERY_DIVISOR} = ${MYSTERY_ANSWER}
+        </div>
+        <div class="flex items-center justify-center gap-2 mb-6">
+          <button onclick="updateMysteryNumber(-10)" class="bg-red-200 hover:bg-red-300 text-red-800 font-bold p-3 rounded-lg text-lg">-10</button>
+          <button onclick="updateMysteryNumber(-1)" class="bg-red-200 hover:bg-red-300 text-red-800 font-bold p-3 rounded-lg text-lg">-1</button>
+          <span id="mystery-value" class="text-4xl font-bold text-gray-800 w-24 text-center">${mysteryCurrentValue}</span>
+          <button onclick="updateMysteryNumber(1)" class="bg-green-200 hover:bg-green-300 text-green-800 font-bold p-3 rounded-lg text-lg">+1</button>
+          <button onclick="updateMysteryNumber(10)" class="bg-green-200 hover:bg-green-300 text-green-800 font-bold p-3 rounded-lg text-lg">+10</button>
+        </div>
+        <h4 class="text-sm font-semibold mb-2 text-center">Visualisasi Pengagihan:</h4>
+        <div id="mystery-visualizer" class="flex flex-wrap justify-center gap-2 mb-4">
+          ${[...Array(MYSTERY_DIVISOR)].map((_, i) => `
+            <div class="kotak-agihan bg-red-50 border-red-200">
+              <div class="text-sm font-bold">Kotak ${i+1}</div>
+              <div id="mystery-box-${i}" class="text-2xl font-bold text-red-700">0</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="text-center font-semibold text-gray-600">Baki: <span id="mystery-baki" class="text-xl">0</span></div>
+        <div id="mystery-result" class="mt-6 p-4 bg-green-100 border-2 border-green-400 rounded-lg text-center text-xl font-semibold text-green-800" style="display: none;">
+        </div>
+      `;
+    }
+    function updateMysteryNumber(change) {
+      mysteryCurrentValue = Math.max(0, mysteryCurrentValue + change);
+      document.getElementById('mystery-value').textContent = mysteryCurrentValue;
+      const perBox = Math.floor(mysteryCurrentValue / MYSTERY_DIVISOR);
+      const remainder = mysteryCurrentValue % MYSTERY_DIVISOR;
+      for (let i = 0; i < MYSTERY_DIVISOR; i++) {
+        document.getElementById(`mystery-box-${i}`).textContent = perBox;
+      }
+      document.getElementById('mystery-baki').textContent = remainder;
+      const hasilEl = document.getElementById('mystery-result');
+      if (perBox === MYSTERY_ANSWER && remainder === 0) {
+        const msg = `Bagus! ${mysteryCurrentValue} ÷ ${MYSTERY_DIVISOR} = ${MYSTERY_ANSWER}. Kod rahsia ialah ${mysteryCurrentValue}!`;
+        hasilEl.textContent = msg;
+        hasilEl.style.display = 'block';
+        document.getElementById('mystery-number-box').textContent = mysteryCurrentValue;
+        setInfo(msg); speak(msg);
+      } else {
+        hasilEl.style.display = 'none';
+        document.getElementById('mystery-number-box').textContent = '?';
+        setInfo(`Setiap kotak ada ${perBox}. Kita perlukan ${MYSTERY_ANSWER}. Cuba lagi.`);
+      }
+    }
+
+    /* ====== Kawalan Umum (Kekal) ====== */
+    function clearActivity() {
+      currentActivity = 0;
+      document.getElementById('activity-content').innerHTML = `
+        <div class="text-center py-16">
+          <div class="text-6xl mb-4">➗</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">Kemahiran Pemulihan: Operasi Bahagi</h2>
+          <p class="text-xl text-gray-600 mb-8">Pilih aktiviti di bawah untuk meneroka konsep bahagi secara santai.</p>
+          <div class="text-4xl">👇</div>
+        </div>
+      `;
+      setInfo("Pilih aktiviti untuk mula belajar bahagi!");
+    }
+    function nextActivity() {
+      if (currentActivity === 0) return loadActivity(1);
+      if (currentActivity < 5) return loadActivity(currentActivity + 1);
+      return loadActivity(1);
+    }
+
+    /* ====== TTS Resume (Kekal) ====== */
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices(); 
+      setInterval(() => { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); }, 1000);
+    }
+  </script>
+</body>
+</html>
